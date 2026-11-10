@@ -273,6 +273,19 @@ $('syncBtn').onclick = () => {
 };
 
 $('chargeBtn').onclick = () => {
+  audioStart();
+  chargeSound();
+
+  defibCharged = false;
+  $('defibStatus').textContent = 'CARGANDO...';
+
+  setTimeout(() => {
+    defibCharged = true;
+    readySound();
+    $('defibStatus').textContent =
+      'CARGA SIMULADA LISTA · ' + selectedEnergy + ' J';
+  }, 900);
+};
   defibCharged = true;
   $('defibStatus').textContent =
     'CARGA SIMULADA LISTA · ' + selectedEnergy + ' J';
