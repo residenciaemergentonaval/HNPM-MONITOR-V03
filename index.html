@@ -62,7 +62,48 @@ footer{font-size:11px;color:#91a2af;line-height:1.5;margin-top:15px}
 </div>
 <p class="muted">Vista de monitor para simulación educativa. No representa mediciones reales.</p>
 </section>
-<footer>Uso exclusivamente educativo. No es un dispositivo médico y no debe utilizarse para monitorización real ni decisiones asistenciales. La vista de alumno muestra únicamente el estado simulado; no almacenes datos de pacientes.</footer>
+<section id="defibSection" class="panel hidden">
+  <div class="row" style="justify-content:space-between">
+    <h2>⚡ DESFIBRILADOR</h2>
+    <button id="closeDefib">VOLVER AL MONITOR</button>
+  </div>
+
+  <div style="background:#03090c;padding:18px;border-radius:12px;border:2px solid #405565">
+    <div class="label">HNPM · EQUIPO DE DESFIBRILACIÓN SIMULADO</div>
+    <h2 id="defibModeLabel">MANUAL</h2>
+
+    <label class="field">Modo
+      <select id="defibMode">
+        <option value="manual">MANUAL</option>
+        <option value="aed">DEA</option>
+      </select>
+    </label>
+
+    <label class="field" style="margin-top:12px">Energía seleccionada
+      <select id="defibEnergy">
+        <option>100</option>
+        <option>120</option>
+        <option>150</option>
+        <option selected>200</option>
+        <option>300</option>
+        <option>360</option>
+      </select>
+      <b style="font-size:28px;color:#f5d45b" id="energyDisplay">200 J</b>
+    </label>
+
+    <div class="row" style="margin-top:18px">
+      <button id="syncBtn">SYNC: OFF</button>
+      <button id="chargeBtn" class="primary">⚡ CARGAR</button>
+      <button id="shockBtn" style="background:#8b2525;border-color:#c94a4a">DESCARGA</button>
+    </div>
+
+    <div id="defibStatus" class="alarm" style="margin-top:16px">
+      EQUIPO EN ESPERA
+    </div>
+  </div>
+  <p class="muted">Simulación educativa. No genera energía ni descarga eléctrica real.</p>
+</section>
+  <footer>Uso exclusivamente educativo. No es un dispositivo médico y no debe utilizarse para monitorización real ni decisiones asistenciales. La vista de alumno muestra únicamente el estado simulado; no almacenes datos de pacientes.</footer>
 <script>
 (()=> {
 const SUPABASE_URL='https://jkvpvsdhmwnjrohmxsto.supabase.co';
