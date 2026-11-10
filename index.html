@@ -158,8 +158,12 @@ if(payload.new&&payload.new.state){state={...payload.new.state};render()}
 });
 const {data,error}=await client.from('simulator_state').select('state').eq('id','v03').single();
 if(!error&&data?.state){state={...data.state};render()}
-const status=await channel.subscribe();$('connection').textContent=status==='SUBSCRIBED'?'Conectado · sala HNPM-01':'Conectando sala…';
-}
+channel.subscribe((status) => {
+  $('connection').textContent =
+    status === 'SUBSCRIBED'
+      ? 'Conectado · sala HNPM-01'
+      : 'Conectando sala...';
+});
 $('loginBtn').onclick=async()=>{
 $('loginMsg').textContent='Verificando…';
 const {data,error}=await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
