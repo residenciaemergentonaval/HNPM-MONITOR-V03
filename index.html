@@ -171,7 +171,90 @@ $('instructorTab').onclick=()=>showMode('instructor');$('studentTab').onclick=()
 for(const k in ranges)$(ranges[k]).addEventListener('input',e=>{state[k]=k==='temp'?Number(e.target.value):Number(e.target.value);$(k+'v').textContent=state[k]+suffix[k];renderMonitorOnly()});
 $('rhythm').onchange=e=>{state.rhythm=e.target.value;render()};
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{state={...presets[b.dataset.preset]};render()});
-$('publish').onclick=async()=>{
+// ===== DESFIBRILADOR SIMULADO =====
+let defibCharged = false;
+let syncEnabled = false;
+let selectedEnergy = 200;
+
+$('openDefib').onclick = () => {
+  $('instructorPanel').classList.add('hidden');
+  $('defibSection').classList.remove('hidden');
+};
+
+$('closeDefib').onclick = () => {
+  $('defibSection').classList.add('hidden');
+  $('instructorPanel').classList.remove('hidden');
+};
+
+$('defibEnergy').onchange = e => {
+  selectedEnergy = Number(e.target.value);
+  $('energyDisplay').textContent = selectedEnergy + ' J';
+  defibCharged = false;
+  $('defibStatus').textContent = 'ENERGÍA MODIFICADA · EQUIPO SIN CARGA';
+};
+
+$('defibMode').onchange = e => {
+  $('defibModeLabel').textContent =
+    e.target.value === 'aed' ? 'DEA' : 'MANUAL';
+  defibCharged = false;
+  syncEnabled = false;
+  $('syncBtn').textContent = 'SYNC: OFF';
+  $('defibStatus').textContent = 'MODO MODIFICADO · EQUIPO EN ESPERA';
+};
+
+$('syncBtn').onclick = () => {
+  syncEnabled = !syncEnabled;
+  $('syncBtn').textContent = syncEnabled ? 'SYNC: ON' : 'SYNC: OFF';
+  defibCharged = false;
+  $('defibStatus').textContent = syncEnabled
+    ? 'SINCRONIZACIÓN ACTIVADA · SIMULACIÓN'
+    : 'SINCRONIZACIÓN DESACTIVADA';
+};
+
+$('chargeBtn').onclick = () => {
+  defibCharged = true;
+  $('defibStatus').textContent =
+    'CARGA SIMULADA LISTA · ' + selectedEnergy + ' J';
+};
+
+$('shockBtn').onclick = () => {
+  if (!defibCharged) {
+    $('defibStatus').textContent = 'ERROR: PRIMERO DEBE CARGAR EL EQUIPO';
+    return;
+  }
+
+  const rhythm = state.rhythm;
+  const mode = $('defibMode').value;
+
+  if (mode === 'manual' && syncEnabled &&
+      !['vt', 'svt', 'af'].includes(rhythm)) {
+    $('defibStatus').textContent =
+      'SIMULACIÓN BLOQUEADA: REVISAR RITMO Y SINCRONIZACIÓN';
+    return;
+  }
+
+  if (mode === 'manual' && !syncEnabled &&
+      !['vf', 'vt'].includes(rhythm)) {
+    $('defibStatus').textContent =
+      'SIMULACIÓN BLOQUEADA: RITMO NO DESFIBRILABLE';
+    return;
+  }
+
+  if (mode === 'aed' && !['vf', 'vt'].includes(rhythm)) {
+    $('defibStatus').textContent =
+      'DEA: NO SE RECOMIENDA DESCARGA EN ESTE RITMO';
+    defibCharged = false;
+    return;
+  }
+
+  $('defibStatus').textContent =
+    'DESCARGA SIMULADA REGISTRADA · ' +
+    selectedEnergy + ' J · ' +
+    (syncEnabled ? 'SINCRONIZADA' : 'NO SINCRONIZADA');
+
+  defibCharged = false;
+};
+  $('publish').onclick=async()=>{
 $('publishMsg').textContent='Enviando…';
 const {error}=await client.from('simulator_state').update({state,updated_at:new Date().toISOString()}).eq('id','v03');
 $('publishMsg').textContent=error?'Error: '+error.message:'Cambios enviados al monitor alumno.';
