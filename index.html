@@ -212,21 +212,12 @@ function readySound() {
   setTimeout(() => beep(1300, 180), 180);
 }
 
-function shockSound() {
-  audioStart();
-  const duration = 0.45;
-  const buffer = audioCtx.createBuffer(
-    1, audioCtx.sampleRate * duration, audioCtx.sampleRate
+  gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(
+    0.001,
+    audioCtx.currentTime + duration
   );
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < data.length; i++) {
-    data[i] = (Math.random() * 2 - 1) *
-      Math.exp(-i / (audioCtx.sampleRate * 0.09));
-  }
-  const source = audioCtx.createBufferSource();
-  const gain = audioCtx.createGain();
-  source.buffer = buffer;
-  gain.gain.value = 0.35;
+
   source.connect(gain);
   gain.connect(audioCtx.destination);
   source.start();
