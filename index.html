@@ -107,10 +107,10 @@ if(studentMode){
 async function subscribe(){
 if(channel)await client.removeChannel(channel);
 channel=client.channel('hnpm-monitor-room',{config:{broadcast:{self:false}}});
-channel.on('postgres_changes',{event:'UPDATE',schema:'public',table:'simulator_state',filter:'id=eq.main'},payload=>{
+channel.on('postgres_changes',{event:'UPDATE',schema:'public',table:'simulator_state',filter:'id=eq.v03'},payload=>{
 if(payload.new&&payload.new.state){state={...payload.new.state};render()}
 });
-const {data,error}=await client.from('simulator_state').select('state').eq('id','main').single();
+const {data,error}=await client.from('simulator_state').select('state').eq('id','v03').single();
 if(!error&&data?.state){state={...data.state};render()}
 const status=await channel.subscribe();$('connection').textContent=status==='SUBSCRIBED'?'Conectado · sala HNPM-01':'Conectando sala…';
 }
@@ -127,7 +127,7 @@ $('rhythm').onchange=e=>{state.rhythm=e.target.value;render()};
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{state={...presets[b.dataset.preset]};render()});
 $('publish').onclick=async()=>{
 $('publishMsg').textContent='Enviando…';
-const {error}=await client.from('simulator_state').update({state,updated_at:new Date().toISOString()}).eq('id','main');
+const {error}=await client.from('simulator_state').update({state,updated_at:new Date().toISOString()}).eq('id','v03');
 $('publishMsg').textContent=error?'Error: '+error.message:'Cambios enviados al monitor alumno.';
 };
 function renderMonitorOnly(){
