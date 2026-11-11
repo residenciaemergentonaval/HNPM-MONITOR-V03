@@ -160,11 +160,36 @@ const {data,error}=await client.from('simulator_state').select('state').eq('id',
 if(!error&&data?.state){state={...data.state};render()}
 channel.subscribe();
 $('connection').textContent = 'Conectado · sala HNPM-01';
-$('loginBtn').onclick=async()=>{
-$('loginMsg').textContent='Verificando…';
-const {data,error}=await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
-if(error){$('loginMsg').textContent='No se pudo ingresar: '+error.message;return}
-user=data.user;$('login').classList.add('hidden');$('app').classList.remove('hidden');await subscribe();showMode('instructor');
+$('loginBtn').onclick = async () => {
+  $('loginMsg').textContent = 'Verificando usuario...';
+
+  try {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: $('email').value.trim(),
+      password: $('password').value
+    });
+
+    if (error) {
+      $('loginMsg').textContent = 'Error de acceso: ' + error.message;
+      return;
+    }
+
+    user = data.user;
+
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    showMode('instructor');
+
+    $('connection').textContent = 'Usuario autenticado · conectando sala...';
+    $('loginMsg').textContent = '';
+
+    subscribe().catch(error => {
+      $('connection').textContent = 'Error de conexión: ' + error.message;
+    });
+
+  } catch (error) {
+    $('loginMsg').textContent = 'Error: ' + error.message;
+  }
 };
 $('logoutBtn').onclick=async()=>{await client.auth.signOut();location.reload()};
 $('instructorTab').onclick=()=>showMode('instructor');$('studentTab').onclick=()=>showMode('student');
