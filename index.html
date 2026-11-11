@@ -160,6 +160,7 @@ const {data,error}=await client.from('simulator_state').select('state').eq('id',
 if(!error&&data?.state){state={...data.state};render()}
 channel.subscribe();
 $('connection').textContent = 'Conectado · sala HNPM-01';
+  }
 $('loginBtn').onclick = async () => {
   $('loginMsg').textContent = 'Verificando usuario...';
 
