@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HNPM Monitor Simulator v0.3</title>
+<title>HNPM Monitor Simulator v0.2</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{color-scheme:dark;font-family:Arial,sans-serif;background:#0b141c;color:#eaf2f7}*{box-sizing:border-box}body{margin:0;padding:16px;max-width:1100px;margin:auto}
@@ -16,7 +16,7 @@ button,input,select{font:inherit;border:1px solid #405565;border-radius:7px;padd
 footer{font-size:11px;color:#91a2af;line-height:1.5;margin-top:15px}
 </style></head>
 <body>
-<header><div><h1>HNPM <span class="cyan">MONITOR SIMULATOR</span></h1><div class="muted">Hospital Naval Pedro Mal﻿lo · v0.3 · Simulación educativa</div></div><span id="connection" class="tag">Conectando…</span></header>
+<header><div><h1>HNPM <span class="cyan">MONITOR SIMULATOR</span></h1><div class="muted">Hospital Naval Pedro Mal﻿lo · v0.2 · Simulación educativa</div></div><span id="connection" class="tag">Conectando…</span></header>
 <section id="login" class="panel">
 <h2 style="font-size:17px;margin-top:0">Acceso del instructor</h2><p class="muted">Ingresá con el usuario creado en Supabase Authentication.</p>
 <div class="grid"><label class="field">Correo electrónico<input id="email" type="email" autocomplete="username"></label><label class="field">Contraseña<input id="password" type="password" autocomplete="current-password"></label></div>
@@ -158,98 +158,20 @@ if(payload.new&&payload.new.state){state={...payload.new.state};render()}
 });
 const {data,error}=await client.from('simulator_state').select('state').eq('id','v03').single();
 if(!error&&data?.state){state={...data.state};render()}
-channel.subscribe();
-$('connection').textContent = 'Conectado · sala HNPM-01';
-  }
-$('loginBtn').onclick = async () => {
-  $('loginMsg').textContent = 'Verificando usuario...';
-
-  try {
-    const { data, error } = await client.auth.signInWithPassword({
-      email: $('email').value.trim(),
-      password: $('password').value
-    });
-
-    if (error) {
-      $('loginMsg').textContent = 'Error de acceso: ' + error.message;
-      return;
-    }
-
-    user = data.user;
-
-    $('login').classList.add('hidden');
-    $('app').classList.remove('hidden');
-    showMode('instructor');
-
-    $('connection').textContent = 'Usuario autenticado · conectando sala...';
-    $('loginMsg').textContent = '';
-
-    subscribe().catch(error => {
-      $('connection').textContent = 'Error de conexión: ' + error.message;
-    });
-
-  } catch (error) {
-    $('loginMsg').textContent = 'Error: ' + error.message;
-  }
+const status=await channel.subscribe();$('connection').textContent=status==='SUBSCRIBED'?'Conectado · sala HNPM-01':'Conectando sala…';
+}
+$('loginBtn').onclick=async()=>{
+$('loginMsg').textContent='Verificando…';
+const {data,error}=await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+if(error){$('loginMsg').textContent='No se pudo ingresar: '+error.message;return}
+user=data.user;$('login').classList.add('hidden');$('app').classList.remove('hidden');await subscribe();showMode('instructor');
 };
 $('logoutBtn').onclick=async()=>{await client.auth.signOut();location.reload()};
 $('instructorTab').onclick=()=>showMode('instructor');$('studentTab').onclick=()=>showMode('student');
 for(const k in ranges)$(ranges[k]).addEventListener('input',e=>{state[k]=k==='temp'?Number(e.target.value):Number(e.target.value);$(k+'v').textContent=state[k]+suffix[k];renderMonitorOnly()});
 $('rhythm').onchange=e=>{state.rhythm=e.target.value;render()};
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{state={...presets[b.dataset.preset]};render()});
-// ===== SISTEMA DE AUDIO =====
-let audioCtx = null;
-
-function audioStart() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-}
-
-function beep(freq = 800, duration = 150, volume = 0.12) {
-  audioStart();
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.frequency.value = freq;
-  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(
-    0.001, audioCtx.currentTime + duration / 1000
-  );
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + duration / 1000);
-}
-
-function chargeSound() {
-  audioStart();
-  beep(450, 180);
-  setTimeout(() => beep(650, 180), 250);
-  setTimeout(() => beep(850, 250), 500);
-}
-
-function readySound() {
-  beep(1000, 120);
-  setTimeout(() => beep(1300, 180), 180);
-}
-
-  gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(
-    0.001,
-    audioCtx.currentTime + duration
-  );
-
-  source.connect(gain);
-  gain.connect(audioCtx.destination);
-  source.start();
-}
-
-function alarmSound() {
-  beep(880, 180);
-  setTimeout(() => beep(880, 180), 280);
-}
-  // ===== DESFIBRILADOR SIMULADO =====
+// ===== DESFIBRILADOR SIMULADO =====
 let defibCharged = false;
 let syncEnabled = false;
 let selectedEnergy = 200;
@@ -290,19 +212,6 @@ $('syncBtn').onclick = () => {
 };
 
 $('chargeBtn').onclick = () => {
-  audioStart();
-  chargeSound();
-
-  defibCharged = false;
-  $('defibStatus').textContent = 'CARGANDO...';
-
-  setTimeout(() => {
-    defibCharged = true;
-    readySound();
-    $('defibStatus').textContent =
-      'CARGA SIMULADA LISTA · ' + selectedEnergy + ' J';
-  }, 900);
-};
   defibCharged = true;
   $('defibStatus').textContent =
     'CARGA SIMULADA LISTA · ' + selectedEnergy + ' J';
@@ -337,7 +246,7 @@ $('shockBtn').onclick = () => {
     defibCharged = false;
     return;
   }
-shockSound();
+
   $('defibStatus').textContent =
     'DESCARGA SIMULADA REGISTRADA · ' +
     selectedEnergy + ' J · ' +
