@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HNPM Monitor Simulator v0.4</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;font-family:Arial,sans-serif;background:#0b141c;color:#eaf2f7}*{box-sizing:border-box}body{margin:0;padding:16px;max-width:1100px;margin:auto}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}h1{font-size:20px;margin:0}.muted{color:#9aabb8;font-size:12px}
+.panel,.monitor{border:1px solid #30424f;border-radius:12px;padding:14px;margin:12px 0;background:#111e28}.monitor{background:#03090c;border:2px solid #354650;font-family:ui-monospace,monospace;color:white}
+button,input,select{font:inherit;border:1px solid #405565;border-radius:7px;padding:9px;background:#172632;color:#edf5fa}button{cursor:pointer}button.primary{background:#14536b;border-color:#3184a0}button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px;font-size:13px}.field input[type=range]{padding:0;width:100%;accent-color:#49c0e6}
+.vitals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.label{font-size:10px;letter-spacing:1px;color:#9aabb8}.vital{font-size:clamp(32px,6vw,48px);font-weight:bold;line-height:1.1}.green{color:#42e78b}.cyan{color:#4bd5ef}.yellow{color:#f5d45b}.purple{color:#d29cff}
+.wave{width:100%;height:68px;display:block;background:#03090c}.bottom{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;border-top:1px solid #263943;padding-top:12px;margin-top:12px}.alarm{text-align:center;margin-top:12px;padding:9px;border-radius:7px;background:#193a2a;color:#a9f0c3;font-size:12px}
+.hidden{display:none!important}.tag{padding:5px 8px;border-radius:6px;background:#193a2a;color:#a9f0c3;font-size:11px}.danger{background:#56231d;color:#ffb4a8}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tabs button.active{background:#24546c;border-color:#55bce8}
+footer{font-size:11px;color:#91a2af;line-height:1.5;margin-top:15px}
+.defib-shell{background:#03090c;padding:18px;border-radius:12px;border:2px solid #405565}
+.defib-display{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:14px 0}
+.defib-readout{background:#101b22;border:1px solid #30424f;border-radius:8px;padding:12px}
+.defib-readout strong{display:block;font-size:25px;color:#f5d45b;margin-top:5px}
+.defib-actions button{min-width:110px;font-weight:bold}
+.defib-actions #shockBtn{background:#8b2525;border-color:#c94a4a}
+.defib-actions #chargeBtn{background:#14536b;border-color:#3184a0}
+.defib-actions #syncBtn.active{background:#245b37;border-color:#42e78b;color:#c8ffda}
+#defibLog{max-height:150px;overflow:auto;font-size:12px;line-height:1.6;color:#c6d4dc}
+
+</style></head>
+<body>
+<header><div><h1>HNPM <span class="cyan">MONITOR SIMULATOR</span></h1><div class="muted">Hospital Naval Pedro Mal﻿lo · v0.4 · Simulación educativa</div></div><span id="connection" class="tag">Conectando…</span></header>
+<section id="login" class="panel">
+<h2 style="font-size:17px;margin-top:0">Acceso del instructor</h2><p class="muted">Ingresá con el usuario creado en Supabase Authentication.</p>
+<div class="grid"><label class="field">Correo electrónico<input id="email" type="email" autocomplete="username"></label><label class="field">Contraseña<input id="password" type="password" autocomplete="current-password"></label></div>
+<div class="row" style="margin-top:12px"><button class="primary" id="loginBtn">Ingresar como instructor</button><span id="loginMsg" class="muted"></span></div>
+</section>
+<section id="app" class="hidden">
+<div class="row" style="justify-content:space-between"><div class="tabs"><button id="instructorTab" class="active">Instructor</button><button id="studentTab">Monitor alumno</button></div><button id="logoutBtn">Cerrar sesión</button></div>
+<section id="instructorPanel" class="panel">
+<h2 style="font-size:16px;margin-top:0">Panel del instructor · sala HNPM-01</h2>
+<div class="grid">
+<label class="field">Frecuencia cardíaca: <b id="hrv">80 bpm</b><input id="hrRange" type="range" min="0" max="220" value="80"></label>
+<label class="field">SpO₂: <b id="spov">98 %</b><input id="spoRange" type="range" min="50" max="100" value="98"></label>
+<label class="field">Presión sistólica: <b id="sysv">120 mmHg</b><input id="sysRange" type="range" min="40" max="220" value="120"></label>
+<label class="field">Presión diastólica: <b id="diav">80 mmHg</b><input id="diaRange" type="range" min="20" max="140" value="80"></label>
+<label class="field">EtCO₂: <b id="co2v">35 mmHg</b><input id="co2Range" type="range" min="0" max="90" value="35"></label>
+<label class="field">Frecuencia respiratoria: <b id="rrv">16 rpm</b><input id="rrRange" type="range" min="0" max="50" value="16"></label>
+<label class="field">Temperatura: <b id="tempv">36.5 °C</b><input id="tempRange" type="range" min="30" max="42" step=".1" value="36.5"></label>
+</div>
+<div class="field" style="margin-top:12px">Ritmo cardíaco<select id="rhythm"><option value="sinus">Ritmo sinusal</option><option value="af">Fibrilación auricular</option><option value="svt">Taquicardia supraventricular</option><option value="vt">Taquicardia ventricular</option><option value="vf">Fibrilación ventricular</option><option value="asystole">Asistolia</option><option value="pea">AESP / PEA</option><option value="brady">Bradicardia sinusal</option></select></div>
+<h3 style="font-size:14px">Escenarios</h3><div class="row"><button data-preset="normal">Normal</button><button data-preset="sepsis">Shock séptico</button><button data-preset="hemorrhage">Shock hemorrágico</button><button data-preset="asthma">Asma grave</button><button data-preset="anaphylaxis">Anafilaxia</button></div>
+  <div class="row" style="margin-top:16px">
+  <button id="openDefib" class="primary" style="background:#8b2525;border-color:#c94a4a">
+    ⚡ ABRIR DESFIBRILADOR
+  </button>
+</div>
+<div class="row" style="margin-top:12px"><button id="publish" class="primary">Enviar cambios al monitor alumno</button><span id="publishMsg" class="muted">Los cambios se envían al presionar este botón.</span></div>
+</section>
+</section>
+<section id="monitorSection" class="hidden">
+<div class="monitor">
+<div class="row" style="justify-content:space-between;border-bottom:1px solid #263943;padding-bottom:10px;margin-bottom:14px"><div><div class="label">HOSPITAL NAVAL PEDRO MALLO</div><b>PACIENTE SIMULADO · BOX 01</b></div><div class="muted">SALA HNPM-01</div></div>
+<div class="vitals">
+<div><div class="label">ECG · II</div><div class="vital green" id="hr">80</div><small>bpm</small></div>
+<div><div class="label">SpO₂</div><div class="vital cyan" id="spo">98</div><small>%</small></div>
+<div><div class="label">PANI</div><div class="vital yellow" id="bp">120/80</div><small id="map">PAM 93 mmHg</small></div>
+<div><div class="label">EtCO₂</div><div class="vital purple" id="co2">35</div><small>mmHg</small></div>
+</div>
+<div style="margin-top:14px"><div class="green label">ECG II</div><canvas id="ecg" class="wave"></canvas></div>
+<div style="margin-top:12px"><div class="cyan label">PLETISMOGRAFÍA</div><canvas id="pleth" class="wave"></canvas></div>
+<div style="margin-top:12px"><div class="purple label">CAPNOGRAFÍA</div><canvas id="cap" class="wave"></canvas></div>
+<div class="bottom"><div><div class="label">FR</div><b id="rr" style="font-size:22px">16</b><small> rpm</small></div><div><div class="label">TEMP</div><b id="temp" style="font-size:22px">36.5</b><small> °C</small></div><div><div class="label">RITMO</div><b id="rhythmLabel">Sinusal</b></div></div>
+<div class="alarm" id="alarm">PARÁMETROS DENTRO DE RANGO</div>
+</div>
+<p class="muted">Vista de monitor para simulación educativa. No representa mediciones reales.</p>
+</section>
+<section id="defibSection" class="panel hidden">
+  <div class="row" style="justify-content:space-between">
+    <h2>⚡ DESFIBRILADOR</h2>
+    <button id="closeDefib">VOLVER AL PANEL</button>
+  </div>
+  <div class="defib-shell">
+    <div class="row" style="justify-content:space-between">
+      <div class="label">HNPM · EQUIPO DE DESFIBRILACIÓN SIMULADO</div>
+      <span class="tag">SIMULACIÓN</span>
+    </div>
+    <h2 id="defibModeLabel">MANUAL</h2>
+    <div class="grid">
+      <label class="field">Modo
+        <select id="defibMode">
+          <option value="manual">MANUAL</option>
+          <option value="aed">DEA</option>
+        </select>
+      </label>
+      <label class="field">Estado de pulso
+        <select id="pulseStatus">
+          <option value="yes">CON PULSO</option>
+          <option value="no">SIN PULSO</option>
+        </select>
+      </label>
+      <label class="field">Energía seleccionada
+        <select id="defibEnergy">
+          <option>100</option><option>120</option><option>150</option>
+          <option selected>200</option><option>300</option><option>360</option>
+        </select>
+      </label>
+    </div>
+    <div class="defib-display">
+      <div class="defib-readout"><span class="label">ENERGÍA</span><strong id="energyDisplay">200 J</strong></div>
+      <div class="defib-readout"><span class="label">SINCRONIZACIÓN</span><strong id="syncDisplay">OFF</strong></div>
+      <div class="defib-readout"><span class="label">CARGA</span><strong id="chargeDisplay">0 J</strong></div>
+    </div>
+    <div class="row defib-actions">
+      <button id="syncBtn">SYNC: OFF</button>
+      <button id="chargeBtn" class="primary">⚡ CARGAR</button>
+      <button id="shockBtn">DESCARGA</button>
+    </div>
+    <div id="defibStatus" class="alarm" style="margin-top:16px">EQUIPO EN ESPERA</div>
+    <h3 style="font-size:14px;margin-top:18px">Registro de intervenciones</h3>
+    <div id="defibLog">Sin intervenciones registradas.</div>
+  </div>
+  <p class="muted">Simulación educativa. No genera energía ni descarga eléctrica real. Verificar siempre pulso y ritmo en el escenario.</p>
+</section>
+  <footer>HNPM MONITOR v0.4 · Uso exclusivamente educativo. No es un dispositivo médico ni debe utilizarse para monitorización real o decisiones asistenciales. La vista de alumno muestra únicamente el estado simulado; no almacenes datos de pacientes. La seguridad efectiva de lectura/escritura debe garantizarse también mediante políticas RLS en Supabase.</footer>
+<script>
+(()=> {
+const SUPABASE_URL='https://jkvpvsdhmwnjrohmxsto.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BvA52XE4VL8eqWv-4iwVZw_PjIAw-AV';
+const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+const defaults={hr:80,spo:98,sys:120,dia:80,co2:35,rr:16,temp:36.5,rhythm:'sinus'};
+let state={...defaults},channel=null,user=null,phase=0;
+const labels={sinus:'Sinusal',af:'Fibrilación auricular',svt:'TSV',vt:'TV',vf:'FV',asystole:'Asistolia',pea:'AESP / PEA',brady:'Bradicardia'};
+const presets={
+normal:{...defaults},
+sepsis:{hr:125,spo:93,sys:82,dia:48,co2:26,rr:28,temp:39,rhythm:'sinus'},
+hemorrhage:{hr:138,spo:94,sys:76,dia:42,co2:24,rr:30,temp:35.5,rhythm:'sinus'},
+asthma:{hr:132,spo:88,sys:125,dia:78,co2:58,rr:34,temp:37,rhythm:'sinus'},
+anaphylaxis:{hr:145,spo:86,sys:70,dia:40,co2:25,rr:30,temp:36,rhythm:'sinus'}
+};
+const ranges={hr:'hrRange',spo:'spoRange',sys:'sysRange',dia:'diaRange',co2:'co2Range',rr:'rrRange',temp:'tempRange'};
+const suffix={hr:' bpm',spo:' %',sys:' mmHg',dia:' mmHg',co2:' mmHg',rr:' rpm',temp:' °C'};
+function render(){
+$('hr').textContent=state.hr;$('spo').textContent=state.spo;$('bp').textContent=state.sys+'/'+state.dia;$('map').textContent='PAM '+Math.round((state.sys+2*state.dia)/3)+' mmHg';$('co2').textContent=state.co2;$('rr').textContent=state.rr;$('temp').textContent=Number(state.temp).toFixed(1);$('rhythmLabel').textContent=labels[state.rhythm]||state.rhythm;
+for(const k in ranges){$(ranges[k]).value=state[k];$(k+'v').textContent=state[k]+suffix[k]}
+$('rhythm').value=state.rhythm;
+let msg='● PARÁMETROS DENTRO DE RANGO',bad=false;
+if(['vf','asystole','vt','pea'].includes(state.rhythm)){msg='ALARMA: RITMO DE ALTO RIESGO';bad=true}
+else if(state.spo<90||state.sys<90||state.hr>150||state.hr<40){msg='ALARMA: PARÁMETROS CRÍTICOS';bad=true}
+else if(state.spo<94||state.sys<100||state.co2>50||state.co2<25)msg='ALERTA: PARÁMETROS ALTERADOS';
+$('alarm').textContent=msg;$('alarm').style.background=bad?'#56231d':msg.includes('ALERTA')?'#59451b':'#193a2a';
+}
+function setInputs(){for(const k in ranges){$(ranges[k]).value=state[k];$(k+'v').textContent=state[k]+suffix[k]}$('rhythm').value=state.rhythm}
+function showMode(mode){$('instructorPanel').classList.toggle('hidden',mode!=='instructor');$('monitorSection').classList.toggle('hidden',mode!=='student');$('instructorTab').classList.toggle('active',mode==='instructor');$('studentTab').classList.toggle('active',mode==='student')}
+// Control de acceso: solo perfiles autorizados pueden abrir el panel instructor.
+async function verifyInstructor(authUser){
+  if(!authUser?.id) return false;
+  const {data,error}=await client.from('instructor_profiles')
+    .select('role').eq('user_id',authUser.id).maybeSingle();
+  if(error){
+    console.error('No se pudo verificar el rol del instructor:',error);
+    throw new Error('No se pudo verificar tu perfil. Revisá la conexión y las políticas RLS de instructor_profiles.');
+  }
+  return ['instructor','admin'].includes(data?.role);
+}
+
+async function init(){
+$('connection').textContent='Comprobando conexión…';
+const studentMode=new URLSearchParams(location.search).get('mode')==='student';
+const {data:{session}}=await client.auth.getSession();
+if(studentMode){
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('instructorTab').classList.add('hidden');
+  $('logoutBtn').classList.add('hidden');
+  await subscribe();
+  showMode('student');
+  $('studentTab').classList.add('hidden');
+}else if(session){
+  user=session.user;
+  try{
+    const allowed=await verifyInstructor(user);
+    if(!allowed){
+      await client.auth.signOut();
+      $('connection').textContent='Acceso restringido';
+      $('loginMsg').textContent='Este usuario no tiene rol de instructor autorizado.';
+      return;
+    }
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    await subscribe();
+    showMode('instructor');
+  }catch(err){
+    $('connection').textContent='Error de autorización';
+    $('loginMsg').textContent=err.message;
+  }
+}else {$('connection').textContent='Sin iniciar sesión';}
+}
+async function subscribe(){
+if(channel)await client.removeChannel(channel);
+channel=client.channel('hnpm-monitor-room',{config:{broadcast:{self:false}}});
+channel.on('postgres_changes',{event:'UPDATE',schema:'public',table:'simulator_state',filter:'id=eq.v03'},payload=>{
+if(payload.new&&payload.new.state){state={...payload.new.state};render()}
+});
+const {data,error}=await client.from('simulator_state').select('state').eq('id','v03').single();
+if(!error&&data?.state){state={...data.state};render()}
+const status=await channel.subscribe();$('connection').textContent=status==='SUBSCRIBED'?'Conectado · sala HNPM-01':'Conectando sala…';
+}
+$('loginBtn').onclick=async()=>{
+$('loginBtn').disabled=true;
+$('loginMsg').textContent='Verificando credenciales y permisos…';
+const {data,error}=await client.auth.signInWithPassword({
+  email:$('email').value.trim(),
+  password:$('password').value
+});
+if(error){
+  $('loginMsg').textContent='No se pudo ingresar: '+error.message;
+  $('loginBtn').disabled=false;
+  return;
+}
+user=data.user;
+try{
+  const allowed=await verifyInstructor(user);
+  if(!allowed){
+    await client.auth.signOut();
+    $('loginMsg').textContent='Acceso denegado: tu usuario no tiene rol instructor o admin.';
+    $('loginBtn').disabled=false;
+    return;
+  }
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  await subscribe();
+  showMode('instructor');
+}catch(err){
+  await client.auth.signOut();
+  $('loginMsg').textContent=err.message;
+  $('loginBtn').disabled=false;
+}
+};
+$('logoutBtn').onclick=async()=>{await client.auth.signOut();location.reload()};
+$('instructorTab').onclick=()=>showMode('instructor');$('studentTab').onclick=()=>showMode('student');
+for(const k in ranges)$(ranges[k]).addEventListener('input',e=>{state[k]=k==='temp'?Number(e.target.value):Number(e.target.value);$(k+'v').textContent=state[k]+suffix[k];renderMonitorOnly()});
+$('rhythm').onchange=e=>{state.rhythm=e.target.value;render()};
+document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{state={...presets[b.dataset.preset]};render()});
+// ===== DESFIBRILADOR SIMULADO =====
+let defibCharged = false;
+let syncEnabled = false;
+let selectedEnergy = 200;
+let defibEvents = [];
+
+function defibMessage(message) {
+  $('defibStatus').textContent = message;
+}
+function logDefib(message) {
+  const time = new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  defibEvents.unshift(time + ' · ' + message);
+  $('defibLog').innerHTML = defibEvents.map(x => `<div>${x}</div>`).join('');
+}
+function resetCharge() {
+  defibCharged = false;
+  $('chargeDisplay').textContent = '0 J';
+}
+$('openDefib').onclick = () => {
+  $('instructorPanel').classList.add('hidden');
+  $('monitorSection').classList.add('hidden');
+  $('defibSection').classList.remove('hidden');
+};
+$('closeDefib').onclick = () => {
+  $('defibSection').classList.add('hidden');
+  $('instructorPanel').classList.remove('hidden');
+};
+$('defibEnergy').onchange = e => {
+  selectedEnergy = Number(e.target.value);
+  $('energyDisplay').textContent = selectedEnergy + ' J';
+  resetCharge();
+  defibMessage('ENERGÍA MODIFICADA · VOLVER A CARGAR');
+};
+$('defibMode').onchange = e => {
+  $('defibModeLabel').textContent = e.target.value === 'aed' ? 'DEA' : 'MANUAL';
+  syncEnabled = false;
+  $('syncBtn').textContent = 'SYNC: OFF';
+  $('syncBtn').classList.remove('active');
+  $('syncDisplay').textContent = 'OFF';
+  resetCharge();
+  $('syncBtn').disabled = e.target.value === 'aed';
+  defibMessage(e.target.value === 'aed' ? 'MODO DEA · ANALIZAR RITMO' : 'MODO MANUAL · EQUIPO EN ESPERA');
+};
+$('pulseStatus').onchange = () => {
+  resetCharge();
+  defibMessage('ESTADO DE PULSO MODIFICADO · REEVALUAR RITMO');
+};
+$('syncBtn').onclick = () => {
+  if ($('defibMode').value === 'aed') return;
+  syncEnabled = !syncEnabled;
+  $('syncBtn').textContent = syncEnabled ? 'SYNC: ON' : 'SYNC: OFF';
+  $('syncBtn').classList.toggle('active', syncEnabled);
+  $('syncDisplay').textContent = syncEnabled ? 'ON' : 'OFF';
+  resetCharge();
+  defibMessage(syncEnabled ? 'SINCRONIZACIÓN ACTIVADA · MARCAS R SOBRE ECG SIMULADO' : 'SINCRONIZACIÓN DESACTIVADA');
+  logDefib(syncEnabled ? 'SYNC activado' : 'SYNC desactivado');
+};
+$('chargeBtn').onclick = () => {
+  if ($('defibMode').value === 'manual' && syncEnabled &&
+      !['vt','svt','af'].includes(state.rhythm)) {
+    defibMessage('CARGA NO HABILITADA: RITMO NO APTO PARA CARDIOVERSIÓN SINCRONIZADA');
+    return;
+  }
+  if ($('defibMode').value === 'manual' && !syncEnabled &&
+      !(['vf','vt'].includes(state.rhythm) && $('pulseStatus').value === 'no')) {
+    defibMessage('REVISAR: DESCARGA NO SINCRONIZADA REQUIERE FV O TV SIN PULSO EN ESTE SIMULADOR');
+    return;
+  }
+  if ($('defibMode').value === 'aed' &&
+      !(['vf','vt'].includes(state.rhythm) && $('pulseStatus').value === 'no')) {
+    defibMessage('DEA: NO SE RECOMIENDA DESCARGA · CONTINUAR RCP Y SEGUIR INDICACIONES');
+    return;
+  }
+  defibCharged = true;
+  $('chargeDisplay').textContent = selectedEnergy + ' J';
+  defibMessage('CARGA SIMULADA LISTA · ' + selectedEnergy + ' J · CONFIRMAR SEGURIDAD');
+  logDefib('Equipo cargado a ' + selectedEnergy + ' J');
+};
+$('shockBtn').onclick = () => {
+  if (!defibCharged) {
+    defibMessage('ERROR: PRIMERO DEBE CARGAR EL EQUIPO');
+    return;
+  }
+  const rhythm = state.rhythm;
+  const mode = $('defibMode').value;
+  const pulse = $('pulseStatus').value;
+  const synchronizedCardioversion = mode === 'manual' && syncEnabled &&
+    pulse === 'yes' && ['vt','svt','af'].includes(rhythm);
+  const unsynchronizedDefib = mode === 'manual' && !syncEnabled &&
+    pulse === 'no' && ['vf','vt'].includes(rhythm);
+  const aedShock = mode === 'aed' && pulse === 'no' &&
+    ['vf','vt'].includes(rhythm);
+
+  if (!(synchronizedCardioversion || unsynchronizedDefib || aedShock)) {
+    defibMessage('DESCARGA BLOQUEADA EN ESTA SIMULACIÓN · REVISAR RITMO, PULSO Y MODO');
+    resetCharge();
+    return;
+  }
+  const type = synchronizedCardioversion ? 'CARDIOVERSIÓN SINCRONIZADA' : 'DESFIBRILACIÓN NO SINCRONIZADA';
+  defibMessage(type + ' SIMULADA REGISTRADA · ' + selectedEnergy + ' J · REEVALUAR RITMO Y PULSO');
+  logDefib(type + ' · ' + selectedEnergy + ' J · ' + rhythm.toUpperCase());
+  resetCharge();
+};
+$('syncBtn').disabled = $('defibMode').value === 'aed';
+
+$('publish').onclick=async()=>{
+$('publishMsg').textContent='Enviando…';
+const {error}=await client.from('simulator_state').update({state,updated_at:new Date().toISOString()}).eq('id','v03');
+$('publishMsg').textContent=error?'Error: '+error.message:'Cambios enviados al monitor alumno.';
+};
+function renderMonitorOnly(){
+$('hr').textContent=state.hr;$('spo').textContent=state.spo;$('bp').textContent=state.sys+'/'+state.dia;$('map').textContent='PAM '+Math.round((state.sys+2*state.dia)/3)+' mmHg';$('co2').textContent=state.co2;$('rr').textContent=state.rr;$('temp').textContent=Number(state.temp).toFixed(1);$('rhythmLabel').textContent=labels[state.rhythm]||state.rhythm;
+}
+
+function draw(id,i){
+ const c=$(id),w=Math.max(220,c.clientWidth),h=68,dpr=Math.min(devicePixelRatio||1,2);
+ if(c.width!==w*dpr||c.height!==h*dpr){c.width=w*dpr;c.height=h*dpr}
+ const x=c.getContext('2d');
+ x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
+
+ // Retícula de monitor: cuadrícula menor y líneas principales cada cinco cuadros.
+ x.strokeStyle='#10251f';x.lineWidth=.55;
+ for(let a=0;a<w;a+=10){x.beginPath();x.moveTo(a,0);x.lineTo(a,h);x.stroke()}
+ for(let a=0;a<h;a+=10){x.beginPath();x.moveTo(0,a);x.lineTo(w,a);x.stroke()}
+ x.strokeStyle='#1a382d';x.lineWidth=.8;
+ for(let a=0;a<w;a+=50){x.beginPath();x.moveTo(a,0);x.lineTo(a,h);x.stroke()}
+ for(let a=0;a<h;a+=50){x.beginPath();x.moveTo(0,a);x.lineTo(w,a);x.stroke()}
+
+ const colors=['#42e78b','#4bd5ef','#d29cff'];
+ x.strokeStyle=colors[i];x.lineWidth=1.8;x.lineJoin='round';x.lineCap='round';x.beginPath();
+
+ const rhythm=state.rhythm;
+ const bpm=Math.max(1,Number(state.hr)||1);
+ const secondsPerBeat=60/bpm;
+ const pxPerSecond=Math.max(35,w/6);
+ const speed=phase*0.55;
+ const baseline=h*.53;
+
+ function ecgAt(t){
+   const beat=(t/pxPerSecond)%secondsPerBeat;
+   const p=beat/secondsPerBeat;
+   if(rhythm==='asystole') return baseline + 0.35*Math.sin(t*.025);
+   if(rhythm==='vf') return baseline + 12*Math.sin(t*.31)+7*Math.sin(t*.73+1.2)+4*Math.sin(t*1.13);
+   if(rhythm==='pea') return baseline + 0.5*Math.sin(t*.025);
+   if(rhythm==='vt'){
+     const q=p<.72 ? Math.sin((p/.72)*Math.PI*2.1)*18 : 0;
+     return baseline-q;
+   }
+   if(rhythm==='svt'){
+     const q=p>.32&&p<.58 ? -19*Math.sin((p-.32)/.26*Math.PI) : 0;
+     return baseline+q+1.5*Math.sin(p*12);
+   }
+   if(rhythm==='brady'||rhythm==='sinus'||rhythm==='af'){
+     let y=0;
+     if(rhythm!=='af') y-=4.0*Math.exp(-Math.pow((p-.17)/.045,2)); // P
+     y+=2.5*Math.exp(-Math.pow((p-.395)/.014,2)); // small Q
+     y-=25*Math.exp(-Math.pow((p-.425)/.012,2)); // R
+     y+=8*Math.exp(-Math.pow((p-.448)/.018,2)); // S
+     y-=6.5*Math.exp(-Math.pow((p-.68)/.095,2)); // T
+     if(rhythm==='af') y+=1.3*Math.sin(t*.65)+.8*Math.sin(t*1.17);
+     return baseline+y;
+   }
+   // Other organized rhythms default to sinus-like morphology.
+   let y=-4*Math.exp(-Math.pow((p-.17)/.045,2));
+   y+=2.5*Math.exp(-Math.pow((p-.395)/.014,2));
+   y-=25*Math.exp(-Math.pow((p-.425)/.012,2));
+   y+=8*Math.exp(-Math.pow((p-.448)/.018,2));
+   y-=6.5*Math.exp(-Math.pow((p-.68)/.095,2));
+   return baseline+y;
+ }
+ function plethAt(t){
+   const interval=60/bpm;
+   let p=((t/pxPerSecond+speed/pxPerSecond)/interval)%1;
+   if(p<0)p+=1;
+   // Rapid systolic upstroke, rounded peak and exponential diastolic decay.
+   let v=0;
+   if(p<.18) v=p/.18;
+   else if(p<.42) v=1-.12*(p-.18)/.24;
+   else v=.88*Math.exp(-(p-.42)*3.1);
+   v+=.045*Math.sin(p*2*Math.PI);
+   return baseline- Math.max(0,v)*Math.max(8,(state.spo-50)*.42);
+ }
+ function capAt(t){
+   const rr=Math.max(1,Number(state.rr)||1);
+   let p=((t/pxPerSecond+speed/pxPerSecond)/(60/rr))%1;
+   if(p<0)p+=1;
+   // Capnogram: inspiratory baseline, expiratory upstroke, alveolar plateau, downstroke.
+   if(p<.12)return baseline+10;
+   if(p<.25)return baseline+10-(p-.12)/.13*27;
+   if(p<.72)return baseline-17 + .9*Math.sin((p-.25)*5);
+   if(p<.84)return baseline-17+(p-.72)/.12*27;
+   return baseline+10;
+ }
+
+ for(let a=0;a<w;a++){
+   const t=a+speed;
+   let y=i===0?ecgAt(t):(i===1?plethAt(t):capAt(t));
+   if(i===2 && Number(state.co2)===0) y=baseline+10;
+   if(a===0)x.moveTo(a,y);else x.lineTo(a,y);
+ }
+ x.stroke();
+}
+
+function render(){renderMonitorOnly();let msg='● PARÁMETROS DENTRO DE RANGO',bad=false;if(['vf','asystole','vt','pea'].includes(state.rhythm)){msg='ALARMA: RITMO DE ALTO RIESGO';bad=true}else if(state.spo<90||state.sys<90||state.hr>150||state.hr<40){msg='ALARMA: PARÁMETROS CRÍTICOS';bad=true}else if(state.spo<94||state.sys<100||state.co2>50||state.co2<25)msg='ALERTA: PARÁMETROS ALTERADOS';$('alarm').textContent=msg;$('alarm').style.background=bad?'#56231d':msg.includes('ALERTA')?'#59451b':'#193a2a';setInputs()}
+setInterval(()=>{phase=(phase+2)%10000;['ecg','pleth','cap'].forEach(draw)},100);
+window.addEventListener('resize',()=>['ecg','pleth','cap'].forEach(draw));
+client.auth.onAuthStateChange((_event,session)=>{if(!session){$('app').classList.add('hidden');$('login').classList.remove('hidden')}});
+init();
+})();
+</script></body></html>
